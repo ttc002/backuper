@@ -103,41 +103,43 @@ def main(progress_bar=None):
         state["last_backup"] = key
         save_state(state)
 
-# === GUI ===
-def gui():
-    state = load_state()
-    last_backup = state.get("last_backup", "Никогда")
-    free_space_gb = get_free_space_bytes(DESTINATION_FOLDER) / (1024 ** 3)
-    folder_size_gb = get_folder_size_bytes(SOURCE_FOLDER) / (1024 ** 3)
+def launch_gui():
+    def gui():
+        state = load_state()
+        last_backup = state.get("last_backup", "Никогда")
+        free_space_gb = get_free_space_bytes(DESTINATION_FOLDER) / (1024 ** 3)
+        folder_size_gb = get_folder_size_bytes(SOURCE_FOLDER) / (1024 ** 3)
 
-    root = tk.Tk()
-    root.title("Архиватор Папок")
-    root.geometry("400x300")
+        root = tk.Tk()
+        root.title("Архиватор Папок")
+        root.geometry("400x300")
 
-    ttk.Label(root, text=f"Папка источника:").pack(pady=5)
-    ttk.Label(root, text=SOURCE_FOLDER).pack()
+        ttk.Label(root, text=f"Папка источника:").pack(pady=5)
+        ttk.Label(root, text=SOURCE_FOLDER).pack()
 
-    ttk.Label(root, text=f"Папка назначения:").pack(pady=5)
-    ttk.Label(root, text=DESTINATION_FOLDER).pack()
+        ttk.Label(root, text=f"Папка назначения:").pack(pady=5)
+        ttk.Label(root, text=DESTINATION_FOLDER).pack()
 
-    ttk.Label(root, text=f"Последняя архивация: {last_backup}").pack(pady=10)
-    ttk.Label(root, text=f"Свободно на диске: {free_space_gb:.2f} GB").pack()
-    ttk.Label(root, text=f"Размер исходной папки: {folder_size_gb:.2f} GB").pack()
+        ttk.Label(root, text=f"Последняя архивация: {last_backup}").pack(pady=10)
+        ttk.Label(root, text=f"Свободно на диске: {free_space_gb:.2f} GB").pack()
+        ttk.Label(root, text=f"Размер исходной папки: {folder_size_gb:.2f} GB").pack()
 
-    progress = ttk.Progressbar(root, orient="horizontal", length=300, mode="determinate")
-    progress.pack(pady=15)
+        progress = ttk.Progressbar(root, orient="horizontal", length=300, mode="determinate")
+        progress.pack(pady=15)
 
-    def run_backup():
-        main(progress)
-        messagebox.showinfo("Успех", "Резервное копирование завершено!")
-        root.destroy()
-        gui()
+        def run_backup():
+            main(progress)
+            messagebox.showinfo("Успех", "Резервное копирование завершено!")
+            root.destroy()
+            launch_gui()
 
-    ttk.Button(root, text="Создать архив сейчас", command=run_backup).pack(pady=10)
-    root.mainloop()
+        ttk.Button(root, text="Создать архив сейчас", command=run_backup).pack(pady=10)
+        root.mainloop()
+
+    gui()
 
 if __name__ == "__main__":
     if USE_GUI:
-        gui()
+        launch_gui()
     else:
         main()
