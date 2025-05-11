@@ -3,18 +3,14 @@ import os
 import shutil
 import datetime
 import json
-import zipfile
-import tkinter as tk
-from tkinter import ttk
-from tkinter import messagebox
-import ctypes
+import time
 
 # === НАСТРОЙКИ ===
-USE_GUI = True  # Включить или выключить графический интерфейс
 SOURCE_FOLDER = "Z:/shared/source"  # Путь к исходной папке (может быть сетевой)
 DESTINATION_FOLDER = "Z:/shared/backups"  # Путь к папке для архивации (может быть сетевой)
 STATE_FILE = os.path.join(DESTINATION_FOLDER, "backup_state.json")  # Файл состояния
 MIN_FREE_SPACE_GB = 5  # Минимум свободного места на диске для создания бэкапа
+CHECK_INTERVAL_SECONDS = 3600  # Периодичность проверки (раз в час)
 
 # === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
 def ensure_dirs():
@@ -59,7 +55,7 @@ def clean_old_backups(required_space):
         else:
             os.remove(oldest)
 
-def create_backup_with_progress(progress_bar):
+def create_backup():
     folder_name = current_backup_folder()
     dest_path = os.path.join(DESTINATION_FOLDER, folder_name)
     if os.path.exists(dest_path):
@@ -67,79 +63,34 @@ def create_backup_with_progress(progress_bar):
 
     os.makedirs(dest_path, exist_ok=True)
 
-    files_to_copy = []
     for dirpath, _, filenames in os.walk(SOURCE_FOLDER):
         for f in filenames:
             src = os.path.join(dirpath, f)
             rel_dir = os.path.relpath(dirpath, SOURCE_FOLDER)
             dst_dir = os.path.join(dest_path, rel_dir)
             os.makedirs(dst_dir, exist_ok=True)
-            files_to_copy.append((src, os.path.join(dst_dir, f)))
+            shutil.copy2(src, os.path.join(dst_dir, f))
 
-    if progress_bar:
-        progress_bar["maximum"] = len(files_to_copy)
-
-    for i, (src, dst) in enumerate(files_to_copy, 1):
-        shutil.copy2(src, dst)
-        if progress_bar:
-            progress_bar["value"] = i
-            progress_bar.update()
-
-def main(progress_bar=None):
+def main():
     ensure_dirs()
-    state = load_state()
-    key = current_month_key()
-    backup_name = current_backup_folder()
-    dest_path = os.path.join(DESTINATION_FOLDER, backup_name)
-
-    if state.get("last_backup") != key and not os.path.exists(dest_path):
-        backup_size = get_folder_size_bytes(SOURCE_FOLDER)
-        free_space = get_free_space_bytes(DESTINATION_FOLDER)
-
-        if free_space < backup_size + MIN_FREE_SPACE_GB * 1024 ** 3:
-            clean_old_backups(backup_size + MIN_FREE_SPACE_GB * 1024 ** 3)
-
-        create_backup_with_progress(progress_bar)
-        state["last_backup"] = key
-        save_state(state)
-
-def launch_gui():
-    def gui():
+    while True:
         state = load_state()
-        last_backup = state.get("last_backup", "Никогда")
-        free_space_gb = get_free_space_bytes(DESTINATION_FOLDER) / (1024 ** 3)
-        folder_size_gb = get_folder_size_bytes(SOURCE_FOLDER) / (1024 ** 3)
+        key = current_month_key()
+        backup_name = current_backup_folder()
+        dest_path = os.path.join(DESTINATION_FOLDER, backup_name)
 
-        root = tk.Tk()
-        root.title("Архиватор Папок")
-        root.geometry("400x300")
+        if state.get("last_backup") != key and not os.path.exists(dest_path):
+            backup_size = get_folder_size_bytes(SOURCE_FOLDER)
+            free_space = get_free_space_bytes(DESTINATION_FOLDER)
 
-        ttk.Label(root, text=f"Папка источника:").pack(pady=5)
-        ttk.Label(root, text=SOURCE_FOLDER).pack()
+            if free_space < backup_size + MIN_FREE_SPACE_GB * 1024 ** 3:
+                clean_old_backups(backup_size + MIN_FREE_SPACE_GB * 1024 ** 3)
 
-        ttk.Label(root, text=f"Папка назначения:").pack(pady=5)
-        ttk.Label(root, text=DESTINATION_FOLDER).pack()
+            create_backup()
+            state["last_backup"] = key
+            save_state(state)
 
-        ttk.Label(root, text=f"Последняя архивация: {last_backup}").pack(pady=10)
-        ttk.Label(root, text=f"Свободно на диске: {free_space_gb:.2f} GB").pack()
-        ttk.Label(root, text=f"Размер исходной папки: {folder_size_gb:.2f} GB").pack()
-
-        progress = ttk.Progressbar(root, orient="horizontal", length=300, mode="determinate")
-        progress.pack(pady=15)
-
-        def run_backup():
-            main(progress)
-            messagebox.showinfo("Успех", "Резервное копирование завершено!")
-            root.destroy()
-            launch_gui()
-
-        ttk.Button(root, text="Создать архив сейчас", command=run_backup).pack(pady=10)
-        root.mainloop()
-
-    gui()
+        time.sleep(CHECK_INTERVAL_SECONDS)
 
 if __name__ == "__main__":
-    if USE_GUI:
-        launch_gui()
-    else:
-        main()
+    main()
