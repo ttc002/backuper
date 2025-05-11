@@ -55,13 +55,28 @@ def clean_old_backups(required_space):
         else:
             os.remove(oldest)
 
-def create_backup():
+def create_backup_with_progress(progress_bar):
     now = datetime.datetime.now()
     folder_name = f"backup_{now.strftime('%Y-%m-%d')}"
     dest_path = os.path.join(DESTINATION_FOLDER, folder_name)
-    shutil.copytree(SOURCE_FOLDER, dest_path)
+    os.makedirs(dest_path, exist_ok=True)
 
-def main():
+    files_to_copy = []
+    for dirpath, _, filenames in os.walk(SOURCE_FOLDER):
+        for f in filenames:
+            src = os.path.join(dirpath, f)
+            rel_dir = os.path.relpath(dirpath, SOURCE_FOLDER)
+            dst_dir = os.path.join(dest_path, rel_dir)
+            os.makedirs(dst_dir, exist_ok=True)
+            files_to_copy.append((src, os.path.join(dst_dir, f)))
+
+    progress_bar["maximum"] = len(files_to_copy)
+    for i, (src, dst) in enumerate(files_to_copy, 1):
+        shutil.copy2(src, dst)
+        progress_bar["value"] = i
+        progress_bar.update()
+
+def main(progress_bar=None):
     ensure_dirs()
     state = load_state()
     key = current_month_key()
@@ -73,7 +88,7 @@ def main():
         if free_space < backup_size + MIN_FREE_SPACE_GB * 1024 ** 3:
             clean_old_backups(backup_size + MIN_FREE_SPACE_GB * 1024 ** 3)
 
-        create_backup()
+        create_backup_with_progress(progress_bar)
         state["last_backup"] = key
         save_state(state)
 
@@ -86,7 +101,7 @@ def gui():
 
     root = tk.Tk()
     root.title("Архиватор Папок")
-    root.geometry("400x250")
+    root.geometry("400x300")
 
     ttk.Label(root, text=f"Папка источника:").pack(pady=5)
     ttk.Label(root, text=SOURCE_FOLDER).pack()
@@ -98,13 +113,16 @@ def gui():
     ttk.Label(root, text=f"Свободно на диске: {free_space_gb:.2f} GB").pack()
     ttk.Label(root, text=f"Размер исходной папки: {folder_size_gb:.2f} GB").pack()
 
+    progress = ttk.Progressbar(root, orient="horizontal", length=300, mode="determinate")
+    progress.pack(pady=15)
+
     def run_backup():
-        main()
+        main(progress)
         messagebox.showinfo("Успех", "Резервное копирование завершено!")
         root.destroy()
         gui()
 
-    ttk.Button(root, text="Создать архив сейчас", command=run_backup).pack(pady=20)
+    ttk.Button(root, text="Создать архив сейчас", command=run_backup).pack(pady=10)
     root.mainloop()
 
 if __name__ == "__main__":
