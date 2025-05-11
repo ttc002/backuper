@@ -22,6 +22,9 @@ def ensure_dirs():
 def current_month_key():
     return datetime.datetime.now().strftime("%Y-%m")
 
+def current_backup_folder():
+    return f"backup_{datetime.datetime.now().strftime('%Y-%m-%d')}"
+
 def load_state():
     if os.path.exists(STATE_FILE):
         with open(STATE_FILE, 'r', encoding='utf-8') as f:
@@ -56,9 +59,11 @@ def clean_old_backups(required_space):
             os.remove(oldest)
 
 def create_backup_with_progress(progress_bar):
-    now = datetime.datetime.now()
-    folder_name = f"backup_{now.strftime('%Y-%m-%d')}"
+    folder_name = current_backup_folder()
     dest_path = os.path.join(DESTINATION_FOLDER, folder_name)
+    if os.path.exists(dest_path):
+        return  # Архив уже существует
+
     os.makedirs(dest_path, exist_ok=True)
 
     files_to_copy = []
@@ -80,8 +85,10 @@ def main(progress_bar=None):
     ensure_dirs()
     state = load_state()
     key = current_month_key()
+    backup_name = current_backup_folder()
+    dest_path = os.path.join(DESTINATION_FOLDER, backup_name)
 
-    if state.get("last_backup") != key:
+    if state.get("last_backup") != key and not os.path.exists(dest_path):
         backup_size = get_folder_size_bytes(SOURCE_FOLDER)
         free_space = get_free_space_bytes(DESTINATION_FOLDER)
 
