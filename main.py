@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 import shutil
 import datetime
@@ -23,12 +24,12 @@ def current_month_key():
 
 def load_state():
     if os.path.exists(STATE_FILE):
-        with open(STATE_FILE, 'r') as f:
+        with open(STATE_FILE, 'r', encoding='utf-8') as f:
             return json.load(f)
     return {}
 
 def save_state(state):
-    with open(STATE_FILE, 'w') as f:
+    with open(STATE_FILE, 'w', encoding='utf-8') as f:
         json.dump(state, f)
 
 def get_folder_size_bytes(path):
@@ -46,7 +47,6 @@ def get_free_space_bytes(folder):
 def clean_old_backups(required_space):
     files = [os.path.join(DESTINATION_FOLDER, f) for f in os.listdir(DESTINATION_FOLDER)]
     files = sorted(files, key=os.path.getctime)
-    freed = 0
     while files and get_free_space_bytes(DESTINATION_FOLDER) < required_space:
         oldest = files.pop(0)
         size = get_folder_size_bytes(oldest)
@@ -54,7 +54,6 @@ def clean_old_backups(required_space):
             shutil.rmtree(oldest)
         else:
             os.remove(oldest)
-        freed += size
 
 def create_backup():
     now = datetime.datetime.now()
