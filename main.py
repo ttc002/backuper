@@ -10,6 +10,7 @@ from tkinter import messagebox
 import ctypes
 
 # === НАСТРОЙКИ ===
+USE_GUI = True  # Включить или выключить графический интерфейс
 SOURCE_FOLDER = "Z:/shared/source"  # Путь к исходной папке (может быть сетевой)
 DESTINATION_FOLDER = "Z:/shared/backups"  # Путь к папке для архивации (может быть сетевой)
 STATE_FILE = os.path.join(DESTINATION_FOLDER, "backup_state.json")  # Файл состояния
@@ -75,11 +76,14 @@ def create_backup_with_progress(progress_bar):
             os.makedirs(dst_dir, exist_ok=True)
             files_to_copy.append((src, os.path.join(dst_dir, f)))
 
-    progress_bar["maximum"] = len(files_to_copy)
+    if progress_bar:
+        progress_bar["maximum"] = len(files_to_copy)
+
     for i, (src, dst) in enumerate(files_to_copy, 1):
         shutil.copy2(src, dst)
-        progress_bar["value"] = i
-        progress_bar.update()
+        if progress_bar:
+            progress_bar["value"] = i
+            progress_bar.update()
 
 def main(progress_bar=None):
     ensure_dirs()
@@ -133,4 +137,7 @@ def gui():
     root.mainloop()
 
 if __name__ == "__main__":
-    gui()
+    if USE_GUI:
+        gui()
+    else:
+        main()
